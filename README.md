@@ -1,37 +1,54 @@
 # LimpiaFoto — Educa OSINT
 
-Herramienta web abierta para inspeccionar y eliminar metadatos de fotografías antes de compartirlas. El procesamiento ocurre localmente en el navegador: las imágenes no se cargan ni se almacenan en un servidor.
+Herramienta web de código abierto para inspeccionar y eliminar metadatos de fotografías antes de compartirlas. El procesamiento ocurre localmente en el navegador: las imágenes no se cargan ni se almacenan en un servidor.
+
+**Demo pública:** https://educaosint-limpiafoto.educaosint.chatgpt.site
 
 ## Funciones
 
 - JPG, PNG, WebP, HEIC y HEIF.
-- Lectura detallada de metadatos EXIF, GPS, XMP, IPTC y comentarios.
+- Detección detallada de EXIF, GPS, fecha y hora, cámara o dispositivo, XMP, IPTC, software, autor y comentarios.
 - Limpieza por reconstrucción de imagen y verificación posterior.
 - Procesamiento de hasta 10 fotografías de 25 MB cada una.
 - Descarga individual o conjunta en ZIP.
 - PWA instalable con funcionamiento básico sin conexión.
-- Analítica diaria agregada sin cookies ni identificadores.
+- Alertas claras al superar los límites admitidos.
+- Páginas de privacidad, términos y créditos.
+- Analítica opcional sin cookies ni identificadores.
 
-## Desarrollo
+## Ejecutar localmente
+
+Requiere Node.js 20.9 o posterior.
 
 ```bash
-npm ci
+npm install
 npm run dev
 ```
 
-Para generar una compilación:
+Abre http://localhost:3000.
+
+Para comprobar una compilación de producción:
 
 ```bash
 npm run build
+npm start
 ```
 
-## Privacidad
+## Despliegue
 
-Nunca envíes fotografías, nombres de archivo o metadatos al servidor. Los eventos analíticos permitidos contienen únicamente el nombre del evento y se agregan por fecha.
+Es una aplicación Next.js estándar. Puede desplegarse en cualquier plataforma compatible con Next.js. El archivo `.openai/hosting.example.json` sirve como referencia y no contiene identificadores privados.
+
+La variable opcional `ANALYTICS_ENDPOINT` permite reenviar únicamente eventos anónimos permitidos. Las fotografías, nombres de archivo y metadatos nunca se envían. Si no se configura, la herramienta funciona normalmente sin analítica.
+
+## Contribuir
+
+Las mejoras y pull requests son bienvenidos. Consulta [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [LICENSE](LICENSE) y [NOTICE](NOTICE).
 
 ## Créditos
 
-Creado para la comunidad [Educa OSINT](https://www.instagram.com/educaosint/). Diseñado y creado por [Josias Pool](https://www.instagram.com/josiaspool/).
+Creado para la comunidad [Educa OSINT](https://www.instagram.com/educaosint/), también en [X](https://x.com/educaosint) y [LinkedIn](https://www.linkedin.com/in/educa-osint-a6ba80431/).
+
+Diseñado y creado por [Josias Pool](https://www.instagram.com/josiaspool/), también en [LinkedIn](https://www.linkedin.com/in/josias-pool-2832a483/).
 
 ## Licencia
 

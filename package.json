@@ -1,0 +1,23 @@
+{
+  "name": "photo-metadata-remover",
+  "version": "1.0.0",
+  "private": false,
+  "description": "Open-source photo metadata inspector and remover by Educa OSINT.",
+  "license": "MIT",
+  "engines": { "node": ">=20.9.0" },
+  "scripts": { "dev": "next dev", "build": "next build", "start": "next start" },
+  "dependencies": {
+    "heic2any": "^0.0.4",
+    "jszip": "^3.10.2",
+    "lucide-react": "^0.468.0",
+    "next": "^16.2.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.9.0"
+  }
+}
