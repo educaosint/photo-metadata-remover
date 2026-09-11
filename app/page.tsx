@@ -48,12 +48,9 @@ type InstallPromptEvent = Event & {
 function track(
   event: "visit" | "clean_photo" | "download_zip" | "install_pwa",
 ) {
-  fetch("/api/analytics", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ event }),
-    keepalive: true,
-  }).catch(() => undefined);
+  // GitHub Pages is static. Keep this hook for a future privacy-friendly
+  // analytics endpoint without transmitting photos or metadata.
+  void event;
 }
 
 function isHeic(file: File) {
