@@ -2,7 +2,7 @@
 
 Herramienta web de código abierto para inspeccionar y eliminar metadatos de fotografías antes de compartirlas. El procesamiento ocurre localmente en el navegador: las imágenes no se cargan ni se almacenan en un servidor.
 
-**Demo pública:** https://educaosint-limpiafoto.educaosint.chatgpt.site
+**Demo pública:** https://limpiafotoosint.site/
 
 ## Funciones
 
