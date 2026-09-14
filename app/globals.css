@@ -746,3 +746,17 @@ footer a {
     grid-template-columns: 1fr;
   }
 }
+
+.metadata-details.technical-only {
+  border-color: #b9dfd4;
+  background: #f3fbf8;
+}
+.metadata-details.technical-only > span {
+  color: var(--green);
+}
+.metadata-details dl > .summary-technical {
+  border-color: #cce8df;
+}
+.metadata-details .summary-technical dt {
+  color: var(--green);
+}
