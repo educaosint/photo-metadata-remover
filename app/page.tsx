@@ -399,7 +399,12 @@ async function inspectAllMetadata(
     for (const [group, count] of groupCounts) {
       const label = groupToSummary[group];
       if (label && !summary.some((item) => item.label === label))
-        summary.push({ label, value: `${count} etiquetas interpretadas` });
+        summary.push({
+          label,
+          value: ["Datos JFIF", "Perfil de color ICC"].includes(label)
+            ? `${count} etiquetas técnicas; sin datos personales identificables`
+            : `${count} etiquetas interpretadas`,
+        });
     }
   } catch {
     // The compact built-in detector remains available as a safe fallback.
@@ -415,6 +420,10 @@ async function inspectAllMetadata(
       (a, b) => a.group.localeCompare(b.group) || a.tag.localeCompare(b.tag),
     ),
   };
+}
+
+function isSensitiveSummary(item: MetadataItem) {
+  return !["Datos JFIF", "Perfil de color ICC"].includes(item.label);
 }
 
 async function decodeImage(file: File) {
@@ -777,18 +786,43 @@ export default function Home() {
                     {photo.status === "ready" && (
                       <>
                         <p
-                          className={photo.metadata.length ? "risk" : "neutral"}
+                          className={
+                            photo.metadata.some(isSensitiveSummary)
+                              ? "risk"
+                              : photo.metadata.length
+                                ? "safe"
+                                : "neutral"
+                          }
                         >
-                          {photo.metadata.length
-                            ? `${photo.metadata.length} tipos de metadatos detectados`
-                            : "Sin metadatos reconocibles; se limpiará de todos modos"}
+                          {photo.metadata.some(isSensitiveSummary)
+                            ? `${photo.metadata.filter(isSensitiveSummary).length} tipos de metadatos sensibles detectados`
+                            : photo.metadata.length
+                              ? `Limpia: sin metadatos sensibles · ${photo.metadata.length} estructuras técnicas`
+                              : "Sin metadatos reconocibles; se limpiará de todos modos"}
                         </p>
                         {photo.metadata.length > 0 && (
-                          <div className="metadata-details">
-                            <span>Metadatos encontrados:</span>
+                          <div
+                            className={
+                              photo.metadata.some(isSensitiveSummary)
+                                ? "metadata-details"
+                                : "metadata-details technical-only"
+                            }
+                          >
+                            <span>
+                              {photo.metadata.some(isSensitiveSummary)
+                                ? "Metadatos encontrados:"
+                                : "Estructuras técnicas del archivo:"}
+                            </span>
                             <dl>
                               {photo.metadata.map((item) => (
-                                <div key={item.label}>
+                                <div
+                                  key={item.label}
+                                  className={
+                                    isSensitiveSummary(item)
+                                      ? "summary-sensitive"
+                                      : "summary-technical"
+                                  }
+                                >
                                   <dt>{item.label}</dt>
                                   <dd>{item.value}</dd>
                                 </div>
@@ -838,7 +872,7 @@ export default function Home() {
                     )}
                     {photo.status === "clean" && (
                       <p className="safe">
-                        <Check size={14} /> Verificada: sin metadatos
+                        <Check size={14} /> Verificada: sin metadatos sensibles
                         detectables
                       </p>
                     )}
