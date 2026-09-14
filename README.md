@@ -7,7 +7,8 @@ Herramienta web de código abierto para inspeccionar y eliminar metadatos de fot
 ## Funciones
 
 - JPG, PNG, WebP, HEIC y HEIF.
-- Detección detallada de EXIF, GPS, fecha y hora, cámara o dispositivo, XMP, IPTC, software, autor y comentarios.
+- Exploración detallada por grupo y etiqueta de EXIF, GPS, XMP, IPTC, ICC, MPF, JFIF, MakerNotes, Photoshop, PNG y WebP, cuando estén presentes y sean interpretables.
+- Marcado de posibles datos sensibles y exportación local del informe completo en JSON.
 - Limpieza por reconstrucción de imagen y verificación posterior.
 - Procesamiento de hasta 10 fotografías de 25 MB cada una.
 - Descarga individual o conjunta en ZIP.
