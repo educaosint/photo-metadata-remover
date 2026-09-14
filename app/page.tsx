@@ -303,13 +303,15 @@ function readableMetadataValue(value: unknown): string {
       if (raw) return raw;
     }
     try {
-      return JSON.stringify(record, (_key, item) => {
-        if (item instanceof ArrayBuffer)
-          return `[datos binarios: ${item.byteLength} bytes]`;
-        if (ArrayBuffer.isView(item))
-          return `[datos binarios: ${item.byteLength} bytes]`;
-        return item;
-      });
+      return (
+        JSON.stringify(record, (_key, item) => {
+          if (item instanceof ArrayBuffer)
+            return `[datos binarios: ${item.byteLength} bytes]`;
+          if (ArrayBuffer.isView(item))
+            return `[datos binarios: ${item.byteLength} bytes]`;
+          return item;
+        }) || "[valor vacío]"
+      );
     } catch {
       return "[valor estructurado no serializable]";
     }
