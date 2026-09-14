@@ -616,7 +616,9 @@ export default function Home() {
           : photo.file.type === "image/webp"
             ? "webp"
             : "jpg"),
-      base = photo.file.name.replace(/\.[^.]+$/, "");
+      base = photo.file.name
+        .replace(/\.[^.]+$/, "")
+        .replace(/(?:-sin-metadatos)+$/i, "");
     const link = document.createElement("a");
     link.href = photo.cleanUrl;
     link.download = `${base}-sin-metadatos.${ext}`;
@@ -657,7 +659,9 @@ export default function Home() {
               ? "webp"
               : "jpg");
         zip.file(
-          `${photo.file.name.replace(/\.[^.]+$/, "")}-sin-metadatos.${ext}`,
+          `${photo.file.name
+            .replace(/\.[^.]+$/, "")
+            .replace(/(?:-sin-metadatos)+$/i, "")}-sin-metadatos.${ext}`,
           photo.cleanBlob!,
         );
       });
