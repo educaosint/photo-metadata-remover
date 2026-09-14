@@ -17,6 +17,12 @@ import {
 
 type Status = "ready" | "processing" | "clean" | "error";
 type MetadataItem = { label: string; value: string };
+type MetadataDetail = {
+  group: string;
+  tag: string;
+  value: string;
+  sensitive: boolean;
+};
 type Photo = {
   id: string;
   file: File;
@@ -25,6 +31,7 @@ type Photo = {
   cleanBlob?: Blob;
   cleanExt?: string;
   metadata: MetadataItem[];
+  metadataDetails: MetadataDetail[];
   status: Status;
   error?: string;
 };
@@ -248,6 +255,166 @@ function inspectMetadata(buffer: ArrayBuffer, type: string) {
   return found;
 }
 
+const GROUP_LABELS: Record<string, string> = {
+  exif: "EXIF",
+  iptc: "IPTC",
+  xmp: "XMP",
+  icc: "Perfil ICC",
+  gps: "GPS",
+  makerNotes: "Notas del fabricante",
+  photoshop: "Recursos de Photoshop",
+  mpf: "Formato multifoto (MPF)",
+  jfif: "JFIF",
+  file: "Información del archivo",
+  pngFile: "Información PNG",
+  pngText: "Texto PNG",
+  riff: "Contenedor WebP/RIFF",
+  gif: "Información GIF",
+  composite: "Datos calculados",
+  thumbnail: "Miniatura incrustada",
+};
+
+function readableMetadataValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value.replace(/\0/g, "").trim();
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
+  if (value instanceof ArrayBuffer)
+    return `[datos binarios: ${value.byteLength} bytes]`;
+  if (ArrayBuffer.isView(value))
+    return `[datos binarios: ${value.byteLength} bytes]`;
+  if (Array.isArray(value)) {
+    if (value.length > 256 && value.every((item) => typeof item === "number"))
+      return `[datos numéricos/binarios: ${value.length} elementos]`;
+    return value.map(readableMetadataValue).filter(Boolean).join(", ");
+  }
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if ("description" in record) {
+      const description = readableMetadataValue(record.description);
+      if (description) return description;
+    }
+    if ("computed" in record) {
+      const computed = readableMetadataValue(record.computed);
+      if (computed) return computed;
+    }
+    if ("value" in record) {
+      const raw = readableMetadataValue(record.value);
+      if (raw) return raw;
+    }
+    try {
+      return JSON.stringify(record, (_key, item) => {
+        if (item instanceof ArrayBuffer)
+          return `[datos binarios: ${item.byteLength} bytes]`;
+        if (ArrayBuffer.isView(item))
+          return `[datos binarios: ${item.byteLength} bytes]`;
+        return item;
+      });
+    } catch {
+      return "[valor estructurado no serializable]";
+    }
+  }
+  return String(value);
+}
+
+function isSensitiveMetadata(group: string, tag: string) {
+  return /gps|location|latitude|longitude|altitude|address|author|artist|owner|creator|copyright|email|phone|serial|device|camera|make|model|date|time|comment|description|keyword|subject|person/i.test(
+    `${group} ${tag}`,
+  );
+}
+
+async function inspectAllMetadata(
+  file: File,
+  buffer: ArrayBuffer,
+): Promise<{ summary: MetadataItem[]; details: MetadataDetail[] }> {
+  const summary = inspectMetadata(buffer, file.type);
+  const details: MetadataDetail[] = [];
+
+  try {
+    const { default: ExifReader } = await import("exifreader");
+    const expanded = (await ExifReader.load(buffer, {
+      expanded: true,
+      async: true,
+    })) as Record<string, unknown>;
+
+    const addDetail = (group: string, tag: string, raw: unknown) => {
+      const value = readableMetadataValue(raw);
+      if (!value) return;
+      details.push({
+        group: GROUP_LABELS[group] || group,
+        tag,
+        value,
+        sensitive: isSensitiveMetadata(group, tag),
+      });
+    };
+
+    const walk = (
+      group: string,
+      value: unknown,
+      path: string[] = [],
+      depth = 0,
+    ) => {
+      if (depth > 5 || value === null || value === undefined) return;
+      if (
+        typeof value !== "object" ||
+        value instanceof ArrayBuffer ||
+        ArrayBuffer.isView(value) ||
+        Array.isArray(value)
+      ) {
+        addDetail(group, path.join(" › ") || group, value);
+        return;
+      }
+      const record = value as Record<string, unknown>;
+      if ("description" in record || "value" in record || "computed" in record) {
+        addDetail(group, path.join(" › ") || group, record);
+        return;
+      }
+      for (const [key, child] of Object.entries(record))
+        walk(group, child, [...path, key], depth + 1);
+    };
+
+    for (const [group, data] of Object.entries(expanded)) {
+      if (group === "metadataRange") continue;
+      walk(group, data);
+    }
+
+    const groupCounts = new Map<string, number>();
+    for (const item of details)
+      groupCounts.set(item.group, (groupCounts.get(item.group) || 0) + 1);
+
+    const groupToSummary: Record<string, string> = {
+      IPTC: "Datos IPTC",
+      EXIF: "Bloque EXIF",
+      XMP: "Datos XMP",
+      GPS: "Ubicación GPS",
+      "Perfil ICC": "Perfil de color ICC",
+      "Notas del fabricante": "Datos del fabricante",
+      "Recursos de Photoshop": "Recursos de Photoshop",
+      "Formato multifoto (MPF)": "Formato multifoto",
+      JFIF: "Datos JFIF",
+      "Texto PNG": "Texto o datos incrustados",
+    };
+    for (const [group, count] of groupCounts) {
+      const label = groupToSummary[group];
+      if (label && !summary.some((item) => item.label === label))
+        summary.push({ label, value: `${count} etiquetas interpretadas` });
+    }
+  } catch {
+    // The compact built-in detector remains available as a safe fallback.
+  }
+
+  const unique = new Map<string, MetadataDetail>();
+  for (const item of details)
+    unique.set(`${item.group}\u0000${item.tag}\u0000${item.value}`, item);
+
+  return {
+    summary,
+    details: [...unique.values()].sort(
+      (a, b) => a.group.localeCompare(b.group) || a.tag.localeCompare(b.tag),
+    ),
+  };
+}
+
 async function decodeImage(file: File) {
   try {
     return await createImageBitmap(file, { imageOrientation: "from-image" });
@@ -353,7 +520,12 @@ export default function Home() {
           id: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           file,
           preview: URL.createObjectURL(previewBlob),
-          metadata: inspectMetadata(await file.arrayBuffer(), file.type),
+          ...(await inspectAllMetadata(file, await file.arrayBuffer()).then(
+            ({ summary, details }) => ({
+              metadata: summary,
+              metadataDetails: details,
+            }),
+          )),
           status: "ready" as Status,
         };
       }),
@@ -439,7 +611,28 @@ export default function Home() {
     link.download = `${base}-sin-metadatos.${ext}`;
     link.click();
   }
-  async function downloadAll() {
+  function downloadMetadataReport(photo: Photo) {
+    const report = {
+      tool: "LimpiaFoto — Educa OSINT",
+      file: {
+        name: photo.file.name,
+        type: photo.file.type || "desconocido",
+        size: photo.file.size,
+      },
+      detectedTypes: photo.metadata,
+      tags: photo.metadataDetails,
+    };
+    const blob = new Blob([JSON.stringify(report, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${photo.file.name.replace(/\.[^.]+$/, "")}-metadatos.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+    async function downloadAll() {
     const { default: JSZip } = await import("jszip");
     const zip = new JSZip();
     photos
@@ -599,6 +792,39 @@ export default function Home() {
                                 </div>
                               ))}
                             </dl>
+                            {photo.metadataDetails.length > 0 && (
+                              <details className="all-metadata">
+                                <summary>
+                                  Ver todas las etiquetas ({photo.metadataDetails.length})
+                                </summary>
+                                <div className="metadata-toolbar">
+                                  <span>
+                                    Los valores se muestran localmente y se tratan como datos no confiables.
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => downloadMetadataReport(photo)}
+                                  >
+                                    <Download size={14} /> Descargar informe JSON
+                                  </button>
+                                </div>
+                                <dl className="metadata-tag-list">
+                                  {photo.metadataDetails.map((item, index) => (
+                                    <div
+                                      key={`${item.group}-${item.tag}-${index}`}
+                                      className={item.sensitive ? "sensitive-tag" : undefined}
+                                    >
+                                      <dt>
+                                        <span>{item.group}</span>
+                                        {item.tag}
+                                        {item.sensitive && <em>Posible dato sensible</em>}
+                                      </dt>
+                                      <dd>{item.value}</dd>
+                                    </div>
+                                  ))}
+                                </dl>
+                              </details>
+                            )}
                           </div>
                         )}
                       </>
